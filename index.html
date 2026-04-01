@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AgriSense — Smart Crop Yield Prediction & Plant Disease Detection</title>
+    <meta name="description" content="Final Year Project - Smart Crop Yield Prediction, Plant Disease Detection, and Weather Intelligence">
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <div class="logo">
+            <span class="logo-icon">🌱</span>
+            <span class="logo-text">AgriSense</span>
+        </div>
+        <p class="tagline">Smart Agriculture Dashboard</p>
+        <div class="project-badge">Final Year Project</div>
+    </div>
+
+    <div class="sidebar-section">
+        <h3 class="sidebar-title">
+            <span class="icon">📍</span> Location Search
+        </h3>
+        <div class="search-box">
+            <input type="text" id="city-input" placeholder="Search city (e.g., Mumbai, Delhi)..." autocomplete="off">
+            <div class="city-dropdown" id="city-dropdown"></div>
+        </div>
+        <div class="selected-city" id="selected-city">
+            <span class="city-icon">📍</span>
+            <span id="selected-city-text"></span>
+        </div>
+    </div>
+
+    <div class="sidebar-section">
+        <div id="sidebar-map"></div>
+    </div>
+
+    <div class="sidebar-section sidebar-weather" id="sidebar-weather">
+        <h3 class="sidebar-title">
+            <span class="icon">🛰️</span> Weather Data
+        </h3>
+        <p class="data-source">Open-Meteo Weather Forecast</p>
+        <p id="weather-date" class="weather-date"></p>
+        
+        <div class="weather-cards">
+            <div class="weather-card">
+                <div class="wc-icon">🌡️</div>
+                <div class="wc-value" id="sw-temp">—</div>
+                <div class="wc-label">Temperature</div>
+            </div>
+            <div class="weather-card">
+                <div class="wc-icon">💦</div>
+                <div class="wc-value" id="sw-humidity">—</div>
+                <div class="wc-label">Humidity</div>
+            </div>
+            <div class="weather-card">
+                <div class="wc-icon">🌧️</div>
+                <div class="wc-value" id="sw-precip">—</div>
+                <div class="wc-label">Precipitation</div>
+            </div>
+            <div class="weather-card">
+                <div class="wc-icon">💧</div>
+                <div class="wc-value" id="sw-moisture">—</div>
+                <div class="wc-label">Soil Moisture</div>
+            </div>
+        </div>
+        
+        <div class="weather-card-full">
+            <div class="wc-icon">💨</div>
+            <div class="wc-value" id="sw-wind">—</div>
+            <div class="wc-label">Wind Speed</div>
+        </div>
+    </div>
+
+    <div class="sidebar-footer">
+        <p><strong>Data Sources:</strong></p>
+        <p>• Weather: Open-Meteo</p>
+        <p>• Geocoding: Open-Meteo</p>
+        <p>• Disease AI: HuggingFace</p>
+    </div>
+</aside>
+
+<main class="main">
+    <header class="main-header">
+        <div class="header-content">
+            <div class="header-title">
+                <h1>🌾 AgriSense Dashboard</h1>
+                <span class="version-badge">v1.0</span>
+            </div>
+            <p>Final Year Project - Crop Yield Prediction, Recommendations & Plant Disease Detection</p>
+        </div>
+    </header>
+
+    <nav class="tab-bar">
+        <button class="tab-btn active" data-tab="predict">
+            <span class="tab-icon">🎯</span>
+            <span class="tab-label">Predict Yield</span>
+        </button>
+        <button class="tab-btn" data-tab="recommend">
+            <span class="tab-icon">🌱</span>
+            <span class="tab-label">Recommendations</span>
+        </button>
+        <button class="tab-btn" data-tab="weather">
+            <span class="tab-icon">📊</span>
+            <span class="tab-label">Weather</span>
+        </button>
+        <button class="tab-btn" data-tab="disease">
+            <span class="tab-icon">🔬</span>
+            <span class="tab-label">Disease Detection</span>
+        </button>
+        <button class="tab-btn" data-tab="model">
+            <span class="tab-icon">📈</span>
+            <span class="tab-label">Model Info</span>
+        </button>
+        <button class="tab-btn" data-tab="plan" id="tab-btn-plan" style="display:none;">
+            <span class="tab-icon">📅</span>
+            <span class="tab-label">Crop Plan</span>
+        </button>
+    </nav>
+
+    <div class="content-area">
+        
+        <div class="tab-panel active" id="tab-predict">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <h2>🎯 Crop Yield Prediction</h2>
+                    <button class="btn btn-outline btn-sm" id="btn-export-prediction" title="Export Prediction">
+                        📥 Export
+                    </button>
+                </div>
+                <p>Enter your growing conditions to predict expected yield using ML</p>
+            </div>
+
+            <div class="predict-form">
+                <div class="form-section">
+                    <h4>🌡️ Environmental Conditions</h4>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Temperature (°C)</label>
+                            <input type="number" id="inp-temp" value="25" step="0.5" min="-10" max="60">
+                            <span class="input-hint">-10 to 60</span>
+                        </div>
+                        <div class="input-group">
+                            <label>Rainfall (mm)</label>
+                            <input type="number" id="inp-rain" value="120" step="1" min="0" max="1000">
+                            <span class="input-hint">0 to 1000</span>
+                        </div>
+                        <div class="input-group">
+                            <label>Soil Moisture (%)</label>
+                            <input type="number" id="inp-moist" value="40" step="1" min="0" max="100">
+                            <span class="input-hint">For Recommendations</span>
+                        </div>
+                        <div class="input-group">
+                            <label>Soil pH</label>
+                            <input type="number" id="inp-ph" value="6.5" step="0.1" min="0" max="14">
+                            <span class="input-hint">0 to 14</span>
+                        </div>
+                        <div class="input-group">
+                            <label>Land Size (acres)</label>
+                            <input type="number" id="inp-land-size" value="2.5" step="0.1" min="0.1" max="25000">
+                            <span class="input-hint">In Acres</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-section">
+                    <h4>🧪 Soil & Farming Practices</h4>
+                    <div class="input-row">
+                        <div class="input-group">
+                            <label>Fertilizer Used (kg/acre)</label>
+                            <input type="number" id="inp-fert-used" value="60" step="1" min="0" max="2000">
+                        </div>
+                        <div class="input-group">
+                            <label>Pesticides Used (kg/acre)</label>
+                            <input type="number" id="inp-pest-used" value="4" step="0.5" min="0" max="400">
+                        </div>
+                        <div class="input-group">
+                            <label>Crop Type</label>
+                            <input type="text" id="inp-crop" list="crop-list" placeholder="Type or select a crop..." autocomplete="off">
+                            <datalist id="crop-list"></datalist>
+                        </div>
+                    </div>
+                </div>
+
+                <button class="btn btn-primary btn-large" id="btn-predict">
+                    <span>🎯</span> Predict Yield
+                </button>
+            </div>
+
+            <div class="result-section" id="predict-result">
+                <div class="result-main">
+                    <div class="result-icon">🌾</div>
+                    <div class="result-value" id="predict-result-text"></div>
+                    <div class="result-label">tons/acre</div>
+                </div>
+                <div class="result-details" id="predict-insight"></div>
+                <div class="result-actions">
+                    <button class="btn btn-outline btn-sm" onclick="exportPrediction('json')">📥 JSON</button>
+                    <button class="btn btn-outline btn-sm" onclick="exportPrediction('csv')">📥 CSV</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="tab-recommend">
+            <div class="panel-header">
+                <div class="panel-title">
+                    <h2>🌱 Crop Recommendations</h2>
+                    <button class="btn btn-outline btn-sm" id="btn-export-rec" title="Export Recommendations">
+                        📥 Export
+                    </button>
+                </div>
+                <p>Find the best crops for your environmental conditions</p>
+            </div>
+
+            <div class="condition-summary" id="recommend-context"></div>
+
+            <div id="recommend-content">
+                <div class="loading-spinner" id="recommend-spinner">
+                    <div class="spinner"></div>
+                    <p>Loading recommendations...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="tab-weather">
+            <div class="panel-header">
+                <h2>📊 Weather History</h2>
+                <p>7-day NASA satellite weather data for your selected location</p>
+            </div>
+
+            <div id="weather-content">
+                <div class="empty-state">
+                    <div class="empty-icon">🌍</div>
+                    <h3>No Location Selected</h3>
+                    <p>Search for a city in the sidebar to view weather data</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="tab-disease">
+            <div class="panel-header">
+                <h2>🔬 Plant Disease Detection</h2>
+                <p>Upload or capture a plant photo for AI-powered disease analysis</p>
+            </div>
+
+            <div class="disease-container">
+                <div class="upload-section">
+                    <div class="method-selector">
+                        <label class="method-option active" data-method="upload">
+                            <input type="radio" name="disease-method" value="upload" checked>
+                            <span class="method-icon">📤</span>
+                            <span class="method-label">Upload Image</span>
+                        </label>
+                        <label class="method-option" data-method="camera">
+                            <input type="radio" name="disease-method" value="camera">
+                            <span class="method-icon">📷</span>
+                            <span class="method-label">Use Camera</span>
+                        </label>
+                    </div>
+
+                    <div id="upload-section">
+                        <div class="upload-zone" id="upload-zone">
+                            <div class="upload-icon">🖼️</div>
+                            <p>Drop image here or click to browse</p>
+                            <span class="upload-hint">JPG, PNG, WEBP (max 10MB)</span>
+                        </div>
+                        <input type="file" id="file-input" accept="image/*" hidden>
+                    </div>
+
+                    <div id="camera-section" class="camera-container">
+                        <video id="camera-video" autoplay playsinline></video>
+                        <button class="btn btn-secondary" id="btn-capture">
+                            <span>📷</span> Capture
+                        </button>
+                        <canvas id="camera-canvas" hidden></canvas>
+                    </div>
+
+                    <div class="preview-container" id="upload-preview">
+                        <img id="preview-img" alt="Preview">
+                        <button class="btn-remove" id="btn-remove-preview">×</button>
+                    </div>
+
+                    <button class="btn btn-success btn-large" id="btn-analyze" disabled>
+                        <span>🔬</span> Analyze Plant
+                    </button>
+                </div>
+
+                <div class="result-section show" id="disease-result-area">
+                    <div class="empty-state">
+                        <div class="empty-icon">🌿</div>
+                        <h3>Ready to Analyze</h3>
+                        <p>Upload a plant image and click Analyze to get results</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="loading-overlay" id="disease-spinner">
+                <div class="spinner-large"></div>
+                <p>Analyzing plant health with AI...</p>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="tab-model">
+            <div class="panel-header">
+                <h2>📈 Model Information</h2>
+                <p>Understanding the ML prediction model and its accuracy</p>
+            </div>
+
+            <div class="model-overview">
+                <div class="model-badge">
+                    <span class="badge-icon">🤖</span>
+                    <span class="badge-text">Gradient Boosting Regressor</span>
+                </div>
+                <div class="model-desc">
+                    <p>A supervised machine learning algorithm that builds decision trees sequentially, 
+                    where each tree corrects the errors of the previous ones, resulting in high-accuracy predictions.</p>
+                </div>
+            </div>
+
+            <h3 class="section-heading">📏 Model Performance Metrics</h3>
+            <div class="metrics-grid" id="model-metrics"></div>
+            <div class="insight-box" id="model-accuracy-insight"></div>
+
+            <h3 class="section-heading">📉 True vs Predicted Yield (Scatter Plot)</h3>
+            <p class="section-desc">Each point represents a test sample. Closer to the diagonal line = more accurate prediction.</p>
+            <div class="chart-wrapper"><canvas id="chart-scatter"></canvas></div>
+            <div class="insight-box" id="scatter-insight"></div>
+
+            <h3 class="section-heading">📊 Feature Importance</h3>
+            <p class="section-desc">Which environmental factors have the biggest impact on crop yield</p>
+            <div class="chart-wrapper"><canvas id="chart-importance"></canvas></div>
+            <div class="insight-box" id="importance-insight"></div>
+
+            <h3 class="section-heading">📈 Yield Distribution</h3>
+            <p class="section-desc">Distribution of crop yields in the training dataset</p>
+            <div class="chart-wrapper"><canvas id="chart-histogram"></canvas></div>
+            <div class="insight-box" id="histogram-insight"></div>
+
+            <h3 class="section-heading">🔢 Residual Analysis</h3>
+            <p class="section-desc">Difference between actual and predicted values</p>
+            <div class="chart-wrapper"><canvas id="chart-residuals"></canvas></div>
+            <div class="insight-box" id="residuals-insight"></div>
+        </div>
+
+        <div class="tab-panel" id="tab-plan">
+            <div class="panel-header">
+                <h2>📅 7-Day Action Plan</h2>
+                <p>Daily watering and fertilizer schedule based on weather forecast</p>
+            </div>
+            
+            <div class="insight-box" id="plan-header-info" style="margin-bottom: 1.5rem;"></div>
+            
+            <div id="plan-content">
+                <div class="loading-spinner" id="plan-spinner" style="display:none;">
+                    <div class="spinner"></div>
+                    <p>Generating 7-day schedule...</p>
+                </div>
+                <div id="plan-days-container" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap:1rem;"></div>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>
